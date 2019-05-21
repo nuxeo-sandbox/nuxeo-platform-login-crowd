@@ -33,6 +33,7 @@ import org.apache.catalina.connector.Response;
 import org.apache.catalina.connector.ResponseFacade;
 import org.apache.catalina.core.StandardContext;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Matchers;
@@ -44,6 +45,7 @@ import org.nuxeo.runtime.test.runner.Features;
 import org.nuxeo.runtime.test.runner.FeaturesRunner;
 import org.nuxeo.usermapper.test.UserMapperFeature;
 
+@Ignore
 @RunWith(FeaturesRunner.class)
 @Features({ PlatformFeature.class, UserMapperFeature.class })
 @Deploy("org.nuxeo.usermapper")
