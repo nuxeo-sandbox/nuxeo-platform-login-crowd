@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<component name="org.nuxeo.ecm.platform.auth.crowd.test">
+
+  <extension target="org.nuxeo.usermapper.service.UserMapperComponent" point="mapper">
+    <mapper name="crowdTest" class="org.nuxeo.ecm.platform.auth.crowd.MockUserMapper"/>
+  </extension>
+
+  <extension target="org.nuxeo.ecm.platform.ui.web.auth.service.PluggableAuthenticationService"
+    point="authenticators">
+    <authenticationPlugin name="CROWD_AUTH"
+      class="org.nuxeo.ecm.platform.auth.crowd.CrowdAuthenticationPlugin">
+      <loginModulePlugin>Trusting_LM</loginModulePlugin>
+      <parameters>
+        <parameter name="configFile">crowd1.properties</parameter>
+        <parameter name="mappingName">keycloakTest</parameter>
+      </parameters>
+    </authenticationPlugin>
+  </extension>
+
+  <extension target="org.nuxeo.ecm.platform.ui.web.auth.service.PluggableAuthenticationService" point="chain">
+    <authenticationChain>
+      <plugins>
+        <plugin>BASIC_AUTH</plugin>
+        <plugin>KEYCLOAK_AUTH</plugin>
+      </plugins>
+    </authenticationChain>
+  </extension>
+
+</component>

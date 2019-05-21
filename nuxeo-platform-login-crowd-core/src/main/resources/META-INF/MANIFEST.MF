@@ -1,0 +1,9 @@
+Bundle-ActivationPolicy: lazy
+Bundle-ClassPath: .
+Manifest-Version: 1.0
+Bundle-Vendor: org.nuxeo.ecm.platform.auth.crowd
+Bundle-Version: 1.0.0
+Bundle-Name: nuxeo-platform-login-crowd-core
+Bundle-ManifestVersion: 2
+Bundle-SymbolicName: org.nuxeo.ecm.platform.auth.crowd.core;singleton=true
+Nuxeo-Component: OSGI-INF/crowd-authentication-contrib.xml
