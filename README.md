@@ -31,6 +31,7 @@ Add an authentication service contribution to enable Crowd server logins.
       <loginModulePlugin>Trusting_LM</loginModulePlugin>
       <parameters>
         <parameter name="name">Crowd</parameter>
+        <parameter name="icon">/icons/crowd.png</parameter>
         <parameter name="label">Crowd</parameter>
         <parameter name="description">Crowd Authentication</parameter>
         <parameter name="configProps"><![CDATA[[
