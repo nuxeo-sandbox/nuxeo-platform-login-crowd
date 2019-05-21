@@ -351,16 +351,24 @@ public class CrowdAuthenticationPlugin
 
         int start = 0;
         int batch = 100;
-        int count = 0;
 
         List<Group> groups = null;
-        while (start == count) {
+        // Continue until all groups are retrieved
+        // Check start point with 0 being a special case
+        while (start == allRoles.size()) {
+            // Retrieve all groups up until batch size
             groups = client.getGroupsForUser(user.getName(), start, batch);
+            // Compute next start point
             start += batch;
 
+            // Add all groups, incrementing count
             for (Group g : groups) {
                 allRoles.add(g.getName());
-                ++count;
+            }
+
+            // If nothing is added on first iteration, exit
+            if (allRoles.isEmpty()) {
+                break;
             }
         }
 
