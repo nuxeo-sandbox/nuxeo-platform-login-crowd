@@ -22,9 +22,10 @@ import static junit.framework.TestCase.assertNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+
+import javax.servlet.http.HttpSession;
 
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.connector.Request;
@@ -33,29 +34,31 @@ import org.apache.catalina.connector.Response;
 import org.apache.catalina.connector.ResponseFacade;
 import org.apache.catalina.core.StandardContext;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.nuxeo.ecm.platform.api.login.UserIdentificationInfo;
 import org.nuxeo.ecm.platform.test.PlatformFeature;
+import org.nuxeo.runtime.test.runner.ConditionalIgnoreRule;
 import org.nuxeo.runtime.test.runner.Deploy;
 import org.nuxeo.runtime.test.runner.Features;
 import org.nuxeo.runtime.test.runner.FeaturesRunner;
 import org.nuxeo.usermapper.test.UserMapperFeature;
 
-@Ignore
 @RunWith(FeaturesRunner.class)
 @Features({ PlatformFeature.class, UserMapperFeature.class })
 @Deploy("org.nuxeo.usermapper")
 @Deploy("org.nuxeo.ecm.platform.web.common")
 @Deploy("org.nuxeo.ecm.platform.auth.crowd.test:OSGI-INF/crowd-descriptor-bundle.xml")
+@ConditionalIgnoreRule.Ignore(condition = IgnoreNoCrowd.class, cause = "Needs a Crowd server!")
 public class TestCrowdAuthenticationPlugin {
 
     private Request requestMock = Mockito.mock(Request.class);
 
     private Response responseMock = Mockito.mock(Response.class);
+
+    private HttpSession sessionMock = Mockito.mock(HttpSession.class);
 
     private RequestFacade requestFacade = new RequestFacade(requestMock);
 
@@ -65,7 +68,9 @@ public class TestCrowdAuthenticationPlugin {
 
     private org.apache.coyote.Response coyoteResponseMock = new org.apache.coyote.Response();
 
-    private static final String INVALID_BEARER_TOKEN = "Bearer invalid";
+    private static final String INVALID_AUTH = "Basic ZXhhbXBsZTpwYXNzd29yZA==";
+
+    private static final String VALID_AUTH = "Basic YW5keTphbmR5";
 
     @Before
     public void setUp() throws Exception {
@@ -84,72 +89,53 @@ public class TestCrowdAuthenticationPlugin {
         Mockito.when(connectorMock.getRedirectPort()).thenReturn(8080);
     }
 
-/*
     @Test
-    public void testKeycloakBearerAuthenticationSucceeding() throws Exception {
+    public void testCrowdFormAuthenticationSuccess() throws Exception {
         CrowdAuthenticationPlugin crowdAuthPlugin = new CrowdAuthenticationPlugin();
         initPlugin(crowdAuthPlugin);
 
-        AccessToken accessToken = new AccessToken();
-        accessToken.setEmail("username@example.com");
-        AccessToken.Access realmAccess = new AccessToken.Access();
-        realmAccess.addRole("user");
-        accessToken.setRealmAccess(realmAccess);
-        Mockito.when(requestMock.getAttribute(KEYCLOAK_ACCESS_TOKEN)).thenReturn(accessToken);
-        Mockito.when(authenticatorMock.authenticate()).thenReturn(AuthOutcome.AUTHENTICATED);
-
-        Mockito.when(providerMock.provide(any(HttpServletRequest.class), any(HttpServletResponse.class)))
-               .thenReturn(authenticatorMock);
-        KeycloakDeployment deployment = new KeycloakDeployment();
-        deployment.setResourceName("test");
-        Mockito.when(providerMock.getResolvedDeployment()).thenReturn(deployment);
-
-        crowdAuthPlugin.setKeycloakAuthenticatorProvider(providerMock);
+        Mockito.when(requestMock.getSession(true)).thenReturn(sessionMock);
+        Mockito.when(requestMock.getRemoteAddr()).thenReturn("127.0.0.1");
+        Mockito.when(requestMock.getParameter("user_name")).thenReturn("andy");
+        Mockito.when(requestMock.getParameter("user_password")).thenReturn("andy");
+        Mockito.when(requestMock.getMethod()).thenReturn("POST");
 
         UserIdentificationInfo identity = crowdAuthPlugin.handleRetrieveIdentity(requestFacade, responseMock);
+        assertNotNull(identity);
+        assertEquals("auser@nuxeo.com", identity.getUserName());
+    }
+
+    @Test
+    public void testCrowdBasicAuthenticationSuccess() throws Exception {
+        CrowdAuthenticationPlugin crowdAuthPlugin = new CrowdAuthenticationPlugin();
+        initPlugin(crowdAuthPlugin);
+
+        Mockito.when(requestMock.getSession(true)).thenReturn(sessionMock);
+        Mockito.when(requestMock.getRemoteAddr()).thenReturn("127.0.0.1");
+        Mockito.when(requestMock.getHeader(Matchers.matches("authorization"))).thenReturn(VALID_AUTH);
+
+        UserIdentificationInfo identity = crowdAuthPlugin.handleRetrieveIdentity(requestFacade, responseFacade);
 
         assertNotNull(identity);
-        assertEquals("username@example.com", identity.getUserName());
-    }*/
+        assertEquals("auser@nuxeo.com", identity.getUserName());
+
+        Mockito.verify(requestMock).getHeader("authorization");
+    }
 
     @Test
     public void testCrowdAuthenticationFailing() throws Exception {
         CrowdAuthenticationPlugin crowdAuthPlugin = new CrowdAuthenticationPlugin();
         initPlugin(crowdAuthPlugin);
 
-        // We'll check the response is marked committed
-        Mockito.when(responseMock.getCoyoteResponse()).thenReturn(coyoteResponseMock);
-
-        // No need to mock, just try the invalid bearer token
-        Mockito.when(requestMock.getHeaders(Matchers.matches("Authorization")))
-               .thenReturn(Collections.enumeration(Collections.singletonList(INVALID_BEARER_TOKEN)));
+        Mockito.when(requestMock.getSession(true)).thenReturn(sessionMock);
+        Mockito.when(requestMock.getRemoteAddr()).thenReturn("127.0.0.1");
+        Mockito.when(requestMock.getHeader(Matchers.matches("authorization"))).thenReturn(INVALID_AUTH);
 
         UserIdentificationInfo identity = crowdAuthPlugin.handleRetrieveIdentity(requestFacade, responseFacade);
 
         assertNull(identity);
 
-        Mockito.verify(responseMock).sendError(401);
-    }
-
-    @Test
-    public void testCrowdSiteAuthenticationFailing() throws Exception {
-        CrowdAuthenticationPlugin crowdAuthPlugin = new CrowdAuthenticationPlugin();
-        initPlugin(crowdAuthPlugin);
-
-        // We'll check the response is marked committed
-        Mockito.when(responseMock.getCoyoteResponse()).thenReturn(coyoteResponseMock);
-
-        // No need to mock, just try with NO bearer token
-        UserIdentificationInfo identity = crowdAuthPlugin.handleRetrieveIdentity(requestFacade, responseFacade);
-
-        assertNull(identity);
-
-        Mockito.verify(responseMock).setStatus(302);
-        Mockito.verify(responseMock)
-               .setHeader(Matchers.matches("Location"),
-                       Matchers.startsWith("https://127.0.0.1:8443/auth/realms/demo/protocol/openid-connect/auth?"
-                               + "response_type=code&" + "client_id=customer-portal&"
-                               + "redirect_uri=https%3A%2F%2Fexample.com%3A443%2Ffoo%2Fpath%2Fto%2Fresource"));
+        Mockito.verify(requestMock).getHeader("authorization");
     }
 
     @Test
@@ -158,17 +144,14 @@ public class TestCrowdAuthenticationPlugin {
         initPlugin(crowdAuthPlugin);
 
         // We'll check the response is marked committed
+        Mockito.when(requestMock.getSession(true)).thenReturn(sessionMock);
         Mockito.when(responseMock.getCoyoteResponse()).thenReturn(coyoteResponseMock);
 
         // No need to mock, just try with NO bearer token
         Boolean result = crowdAuthPlugin.handleLogout(requestFacade, responseFacade);
 
         assertNotNull(result);
-        assertEquals(true, result);
-
-        Mockito.verify(responseMock)
-               .sendRedirect(
-                       "https://127.0.0.1:8443/auth/realms/demo/protocol/openid-connect/logout?redirect_uri=https://example.com:443/foo/home.html");
+        assertEquals(false, result);
     }
 
     private CrowdAuthenticationPlugin initPlugin(CrowdAuthenticationPlugin crowdAuthPlugin) {

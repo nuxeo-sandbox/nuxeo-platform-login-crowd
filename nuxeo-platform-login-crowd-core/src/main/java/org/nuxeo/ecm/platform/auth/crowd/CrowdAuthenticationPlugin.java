@@ -34,7 +34,9 @@ import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -86,7 +88,7 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
     public static final String CROWD_CONFIG_DIR_KEY = "configDirectory";
 
     public static final String CROWD_MAPPING_NAME_KEY = "mappingName";
-    
+
     public static final String CROWD_AUTH_PLUGIN_KEY = "pluginName";
 
     public static final String USERINFO_KEY = "CROWD_USERINFO";
@@ -98,7 +100,7 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
     private String crowdConfigDir = null;
 
     private String mappingName = DEFAULT_MAPPING_NAME;
-    
+
     private String pluginName = "CROWD_AUTH";
 
     private CrowdClient client;
@@ -111,7 +113,7 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
     public void initPlugin(Map<String, String> parameters) {
         // Set Form parameters
         super.initPlugin(parameters);
-        
+
         // Customize plugin name
         if (parameters.containsKey(CROWD_AUTH_PLUGIN_KEY)) {
             pluginName = parameters.get(CROWD_AUTH_PLUGIN_KEY);
@@ -189,39 +191,47 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
         }
 
         if (!state.isAuthenticated()) {
-            // Only accept POST requests
-            String method = req.getMethod();
-            if (!"POST".equals(method)) {
-                log.debug("Request method is " + method + ", only accepting POST");
-                return null;
-            }
+            // Check BASIC authentication
+            UserIdentificationInfo creds = getBasicAuth(req, resp);
+            if (creds == null) {
+                // Only accept POST requests
+                String method = req.getMethod();
+                if (!"POST".equals(method)) {
+                    log.debug("Request method is " + method + ", only accepting POST");
+                    return null;
+                }
 
-            String userName = req.getParameter(usernameKey);
-            String password = req.getParameter(passwordKey);
-            // NXP-2650: ugly hack to check if form was submitted
-            if (req.getParameter(FORM_SUBMITTED_MARKER) != null && (userName == null || userName.length() == 0)) {
-                req.setAttribute(LOGIN_ERROR, ERROR_USERNAME_MISSING);
-            }
-            if (userName == null || userName.length() == 0) {
-                return null;
+                String userName = req.getParameter(usernameKey);
+                String password = req.getParameter(passwordKey);
+                // NXP-2650: ugly hack to check if form was submitted
+                if (req.getParameter(FORM_SUBMITTED_MARKER) != null && (userName == null || userName.length() == 0)) {
+                    req.setAttribute(LOGIN_ERROR, ERROR_USERNAME_MISSING);
+                }
+                if (userName == null || userName.length() == 0) {
+                    return null;
+                }
+                creds = new UserIdentificationInfo(userName, password);
             }
 
             try {
-                crowdUser = httpAuthenticator.authenticate(req, resp, userName, password);
+                crowdUser = httpAuthenticator.authenticate(req, resp, creds.getUserName(), creds.getPassword());
             } catch (ExpiredCredentialException e) {
-                log.debug("Crowd credentials expired: " + userName);
+                log.debug("Crowd credentials expired: " + creds.getUserName());
+                req.setAttribute(LOGIN_ERROR, "expired");
             } catch (InactiveAccountException e) {
-                log.debug("Inactive Crowd account: " + userName);
+                log.debug("Inactive Crowd account: " + creds.getUserName());
+                req.setAttribute(LOGIN_ERROR, "inactive");
             } catch (ApplicationPermissionException e) {
-                log.debug("Invalid application permissions: " + userName);
+                log.debug("Invalid application permissions: " + creds.getUserName());
+                req.setAttribute(LOGIN_ERROR, "invalid");
             } catch (InvalidAuthenticationException e) {
                 // Fall through
             } catch (OperationFailedException e) {
                 req.setAttribute(LOGIN_ERROR, ERROR_CONNECTION_FAILED);
             } catch (InvalidTokenException e) {
-                log.debug("Invalid Crowd token: " + userName);
+                log.debug("Invalid Crowd token: " + creds.getUserName());
             } catch (ApplicationAccessDeniedException e) {
-                log.debug("Crowd application denied: " + userName);
+                log.debug("Crowd application denied: " + creds.getUserName());
             }
         } else {
             Principal p = state.getAuthenticatedPrincipal().orNull();
@@ -263,6 +273,27 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
             req.setAttribute(LOGIN_ERROR, ERROR_CONNECTION_FAILED);
             return null;
         }
+    }
+
+    public UserIdentificationInfo getBasicAuth(HttpServletRequest req, HttpServletResponse resp) {
+
+        String auth = req.getHeader("authorization");
+
+        if (auth != null && auth.toLowerCase().startsWith("basic")) {
+            int idx = auth.indexOf(' ');
+            String b64userPassword = auth.substring(idx + 1);
+            byte[] clearUp = Base64.decodeBase64(b64userPassword);
+            String userCredentials = new String(clearUp);
+            int idxOfColon = userCredentials.indexOf(':');
+            if (idxOfColon > 0 && idxOfColon < userCredentials.length() - 1) {
+                String username = userCredentials.substring(0, idxOfColon);
+                String password = userCredentials.substring(idxOfColon + 1);
+                return new UserIdentificationInfo(username, password);
+            } else {
+                return null;
+            }
+        }
+        return null;
     }
 
     private CrowdUserInfo getCrowdUser(User token) throws InvalidAuthenticationException, UserNotFoundException,
@@ -315,10 +346,13 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
      */
     @Override
     public Boolean handleLogout(HttpServletRequest request, HttpServletResponse response) {
-        try {
-            httpAuthenticator.logout(request, response);
-        } catch (OperationFailedException | InvalidAuthenticationException | ApplicationPermissionException e) {
-            log.error("Error sending logout to Crowd", e);
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            try {
+                httpAuthenticator.logout(request, response);
+            } catch (Exception e) {
+                log.error("Error sending logout to Crowd", e);
+            }
         }
         // This function does not perform a redirect, so return false to
         // allow login module to perform redirect

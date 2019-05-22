@@ -19,6 +19,19 @@ mvn clean install
 
 > Install with `nuxeoctl mp-install <package>`
 
+## Testing
+
+Integration testing requires an Atlassian Crowd server, as configured:
+* Nuxeo Application
+  * Project: nuxeo
+  * Password: password
+* User
+  * Username: andy
+  * Password: andy
+  * EMail: auser@nuxeo.com
+
+Test with: `mvn test -Dnuxeo.test.auth=crowd`
+
 ## Configure
 
 Add an authentication service contribution to enable Crowd server logins.
@@ -57,8 +70,8 @@ cookie.tokenkey                         crowd.token_key
   point="chain">
   <authenticationChain>
     <plugins>
-      <plugin>BASIC_AUTH</plugin>
       <plugin>CROWD_AUTH</plugin>
+      <plugin>BASIC_AUTH</plugin>
       <plugin>FORM_AUTH</plugin>
     </plugins>
   </authenticationChain>

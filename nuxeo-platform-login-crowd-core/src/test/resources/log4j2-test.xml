@@ -2,7 +2,7 @@
 <Configuration>
   <Appenders>
     <Console name="CONSOLE" target="SYSTEM_OUT">
-      <ThresholdFilter level="WARN" onMatch="ACCEPT" />
+      <ThresholdFilter level="DEBUG" onMatch="ACCEPT" />
       <PatternLayout pattern="%d{DEFAULT} [%t] %-5p [%C{1}] %m%n" />
     </Console>
     <File name="FILE" fileName="target/trace.log" append="false">
@@ -11,7 +11,8 @@
     </File>
   </Appenders>
   <Loggers>
-    <Logger name="org.nuxeo" level="info" />
+    <Logger name="org.nuxeo" level="warn" />
+    <Logger name="org.nuxeo.ecm.platform.auth.crowd" level="debug" />
     <Root level="warn">
       <AppenderRef ref="CONSOLE" />
       <AppenderRef ref="FILE" />
