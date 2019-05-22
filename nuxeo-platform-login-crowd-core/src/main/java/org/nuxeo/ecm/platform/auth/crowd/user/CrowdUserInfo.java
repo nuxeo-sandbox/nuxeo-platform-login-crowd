@@ -134,10 +134,10 @@ public class CrowdUserInfo extends UserIdentificationInfo {
         }
 
         public CrowdUserInfo build() {
-            CrowdUserInfo keycloakUserInfo = new CrowdUserInfo(userName, password, firstName, lastName, company);
-            keycloakUserInfo.setToken(token);
-            keycloakUserInfo.setAuthPluginName(authPluginName);
-            return keycloakUserInfo;
+            CrowdUserInfo info = new CrowdUserInfo(userName, password, firstName, lastName, company);
+            info.setToken(token);
+            info.setAuthPluginName(authPluginName);
+            return info;
         }
     }
 }

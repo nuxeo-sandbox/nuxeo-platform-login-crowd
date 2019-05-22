@@ -3,12 +3,10 @@
   <require>org.nuxeo.ecm.platform.login</require>
 
   <install>
-
-    <!--  unzip the war template -->
+    <!--  unzip the war template, add icon to web path -->
     <unzip from="${bundle.fileName}" to="/" prefix="web">
       <include>web/nuxeo.war/**</include>
     </unzip>
-
   </install>
 
 </fragment>

@@ -1,29 +1,6 @@
 <?xml version="1.0"?>
 <component name="org.nuxeo.ecm.platform.auth.crowd" version="1.0">
 
-  <documentation>
-    This Authentication Plugin searches for Username in Atlassian Crowd.
-
-    To configure the Crowd SSO realm,
-    just drop the crowd.properties configuration somewhere in the classpath.
-    (the /nxserver/config in typically in the classpath)
-
-    This Authentication Plugin is configured to be used with the Trusting_LM LoginModule plugin.
-  </documentation>
-  
-  <!-- 
-  <extension target="org.nuxeo.ecm.platform.ui.web.auth.service.PluggableAuthenticationService"
-    point="authenticators">
-    <authenticationPlugin name="CROWD_AUTH" enabled="true"
-      class="org.nuxeo.ecm.platform.auth.crowd.CrowdAuthenticationPlugin">
-      <loginModulePlugin>Trusting_LM</loginModulePlugin>
-      <parameters>
-        <parameter name="configFile">crowd.properties</parameter>
-      </parameters>
-    </authenticationPlugin>
-  </extension>
-  -->
-
   <extension target="org.nuxeo.usermapper.service.UserMapperComponent" point="mapper">
     <documentation>
       Contribute the default UserMapper for Crowd.
