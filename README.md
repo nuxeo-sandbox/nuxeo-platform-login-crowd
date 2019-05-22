@@ -36,6 +36,14 @@ Test with: `mvn test -Dnuxeo.test.auth=crowd`
 
 Add an authentication service contribution to enable Crowd server logins.
 
+Crowd Configuration Properties:
+
+* `configProps`: Crowd configuration property string (inline)
+* `configFile`: Configuration file name, loaded from classpath or `configDirectory` (Default: `crowd.properties`)
+* `configDirectory`: Directory for configuration file, if different than the classpath
+* `mappingName`: User mapper name (Default: `crowd`)
+* `pluginName`: Plugin name (Default: `CROWD_AUTH`)
+
 ```xml
   <extension target="org.nuxeo.ecm.platform.ui.web.auth.service.PluggableAuthenticationService"
     point="authenticators">
@@ -65,17 +73,48 @@ cookie.tokenkey                         crowd.token_key
     </authenticationPlugin>
   </extension>
 
-<extension
-  target="org.nuxeo.ecm.platform.ui.web.auth.service.PluggableAuthenticationService"
-  point="chain">
-  <authenticationChain>
-    <plugins>
-      <plugin>CROWD_AUTH</plugin>
-      <plugin>BASIC_AUTH</plugin>
-      <plugin>FORM_AUTH</plugin>
-    </plugins>
-  </authenticationChain>
-</extension>
+  <!-- Interactive Authentication with Crowd -->
+  <extension
+    target="org.nuxeo.ecm.platform.ui.web.auth.service.PluggableAuthenticationService"
+    point="chain">
+    <authenticationChain>
+      <plugins>
+        <plugin>CROWD_AUTH</plugin>
+        <plugin>BASIC_AUTH</plugin>
+        <plugin>FORM_AUTH</plugin>
+      </plugins>
+    </authenticationChain>
+  </extension>
+
+  <!-- Automation Authentication with Crowd -->
+  <extension
+    target="org.nuxeo.ecm.platform.ui.web.auth.service.PluggableAuthenticationService"
+    point="specificChains">
+    <specificAuthenticationChain name="Automation">
+      <urlPatterns>
+        <url>(.*)/automation.*</url>
+      </urlPatterns>
+      <replacementChain>
+        <plugin>CROWD_AUTH</plugin>
+        <plugin>AUTOMATION_BASIC_AUTH</plugin>
+      </replacementChain>
+    </specificAuthenticationChain>
+  </extension>
+
+  <!-- REST Authentication with Crowd -->
+  <extension
+    target="org.nuxeo.ecm.platform.ui.web.auth.service.PluggableAuthenticationService"
+    point="specificChains">
+    <specificAuthenticationChain name="RestAPI">
+      <urlPatterns>
+        <url>(.*)/api/v.*</url>
+      </urlPatterns>
+      <replacementChain>
+        <plugin>CROWD_AUTH</plugin>
+        <plugin>AUTOMATION_BASIC_AUTH</plugin>
+      </replacementChain>
+    </specificAuthenticationChain>
+  </extension>
 ```
 
 ## Support

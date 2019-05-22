@@ -208,6 +208,7 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
                     req.setAttribute(LOGIN_ERROR, ERROR_USERNAME_MISSING);
                 }
                 if (userName == null || userName.length() == 0) {
+                    log.debug("No user found in form request");
                     return null;
                 }
                 creds = new UserIdentificationInfo(userName, password);
@@ -215,6 +216,9 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
 
             try {
                 crowdUser = httpAuthenticator.authenticate(req, resp, creds.getUserName(), creds.getPassword());
+                if (log.isDebugEnabled() && crowdUser == null) {
+                    log.debug("No such user in Crowd: " + creds.getUserName());
+                }
             } catch (ExpiredCredentialException e) {
                 log.debug("Crowd credentials expired: " + creds.getUserName());
                 req.setAttribute(LOGIN_ERROR, "expired");
@@ -263,6 +267,9 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
             // Store the user info as a key in the request so apps can use it
             // later in the chain
             req.setAttribute(USERINFO_KEY, info);
+            if (log.isDebugEnabled()) {
+                log.debug("User authenticated from Crowd: " + crowdUser.getName());
+            }
 
             UserMapperService ums = Framework.getService(UserMapperService.class);
             ums.getOrCreateAndUpdateNuxeoPrincipal(mappingName, info);
