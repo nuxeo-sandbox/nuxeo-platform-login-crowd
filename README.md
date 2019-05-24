@@ -2,7 +2,7 @@
 
 [![Build Status](https://qa.nuxeo.org/jenkins/buildStatus/icon?job=Sandbox/sandbox_nuxeo-platform-login-crowd-master)](https://qa.nuxeo.org/jenkins/view/Sandbox/job/Sandbox/job/sandbox_nuxeo-platform-login-crowd-master/)
 
-Authentication and authorization with [Atlassian Crowd](https://www.atlassian.com/software/crowd).
+Authentication and authorization with [Atlassian Crowd](https://www.atlassian.com/software/crowd).  Use the Nuxeo Login form or REST calls as you normally would with your Atlassian Crowd user account.
 
 ## Dependencies
 
@@ -34,13 +34,14 @@ Test with: `mvn test -Dnuxeo.test.auth=crowd`
 
 ## Configure
 
-Add an authentication service contribution to enable Crowd server logins.
+Add an authentication service contribution to enable Crowd server logins.  The `crowd.properties` content comes from your Crowd server instance.  Within the Docker image, the properties are generated at `/opt/crowd/client/conf/crowd.properties`.  The values provided below are examples that may work with your server.
 
 Crowd Configuration Properties:
 
 * `configProps`: Crowd configuration property string (inline)
 * `configFile`: Configuration file name, loaded from classpath or `configDirectory` (Default: `crowd.properties`)
 * `configDirectory`: Directory for configuration file, if different than the classpath
+* `logging`: Enable (true) or disable (false) detailed logging of Crowd authentication issues (Default: false)
 * `mappingName`: User mapper name (Default: `crowd`)
 * `pluginName`: Plugin name (Default: `CROWD_AUTH`)
 
@@ -55,6 +56,7 @@ Crowd Configuration Properties:
         <parameter name="icon">/icons/crowd.png</parameter>
         <parameter name="label">Crowd</parameter>
         <parameter name="description">Crowd Authentication</parameter>
+        <parameter name="logging">false</parameter>
         <parameter name="configProps"><![CDATA[[
 application.name                        nuxeo
 application.password                    password

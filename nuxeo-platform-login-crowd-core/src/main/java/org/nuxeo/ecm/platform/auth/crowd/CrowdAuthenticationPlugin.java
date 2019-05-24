@@ -91,6 +91,8 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
 
     public static final String CROWD_AUTH_PLUGIN_KEY = "pluginName";
 
+    public static final String CROWD_AUTH_LOGGING_KEY = "logging";
+
     public static final String USERINFO_KEY = "CROWD_USERINFO";
 
     public static final String DEFAULT_MAPPING_NAME = "crowd";
@@ -103,6 +105,8 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
 
     private String pluginName = "CROWD_AUTH";
 
+    private boolean logging = false;
+
     private CrowdClient client;
 
     private ClientProperties clientProperties;
@@ -113,6 +117,9 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
     public void initPlugin(Map<String, String> parameters) {
         // Set Form parameters
         super.initPlugin(parameters);
+
+        // Set logging param
+        logging = "true".equalsIgnoreCase(parameters.get(CROWD_AUTH_LOGGING_KEY));
 
         // Customize plugin name
         if (parameters.containsKey(CROWD_AUTH_PLUGIN_KEY)) {
@@ -179,6 +186,24 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
         return clientProperties.getApplicationAuthenticationURL();
     }
 
+    /**
+     * Log Crowd communication exceptions
+     */
+    private void logCrowd(String reason, Exception e, String user, boolean warn) {
+        StringBuilder buf = new StringBuilder(reason);
+        if (e != null) {
+            buf.append(" [").append(e.getMessage()).append("]");
+        }
+        if (user != null) {
+            buf.append(" user: ").append(user);
+        }
+        if (warn || logging) {
+            log.warn(buf.toString(), e);
+        } else if (log.isDebugEnabled()) {
+            log.debug(buf.toString(), e);
+        }
+    }
+
     @Override
     public UserIdentificationInfo handleRetrieveIdentity(HttpServletRequest req, HttpServletResponse resp) {
         User crowdUser = null;
@@ -186,7 +211,8 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
         try {
             state = httpAuthenticator.checkAuthenticated(req, resp);
         } catch (OperationFailedException e) {
-            req.setAttribute(LOGIN_ERROR, "Unable to connect to Crowd.");
+            logCrowd("Failure checking authentication state", e, null, true);
+            req.setAttribute(LOGIN_ERROR, ERROR_CONNECTION_FAILED);
             return null;
         }
 
@@ -220,22 +246,24 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
                     log.debug("No such user in Crowd: " + creds.getUserName());
                 }
             } catch (ExpiredCredentialException e) {
-                log.debug("Crowd credentials expired: " + creds.getUserName());
+                logCrowd("Credential Expired", e, creds.getUserName(), false);
                 req.setAttribute(LOGIN_ERROR, "expired");
             } catch (InactiveAccountException e) {
-                log.debug("Inactive Crowd account: " + creds.getUserName());
+                logCrowd("Inactive Account", e, creds.getUserName(), false);
                 req.setAttribute(LOGIN_ERROR, "inactive");
             } catch (ApplicationPermissionException e) {
-                log.debug("Invalid application permissions: " + creds.getUserName());
+                logCrowd("Invalid Application Permission", e, creds.getUserName(), true);
                 req.setAttribute(LOGIN_ERROR, "invalid");
             } catch (InvalidAuthenticationException e) {
                 // Fall through
+                logCrowd("Invalid Authentication", e, creds.getUserName(), false);
             } catch (OperationFailedException e) {
+                logCrowd("Operation Failed", e, creds.getUserName(), true);
                 req.setAttribute(LOGIN_ERROR, ERROR_CONNECTION_FAILED);
             } catch (InvalidTokenException e) {
-                log.debug("Invalid Crowd token: " + creds.getUserName());
+                logCrowd("Invalid Token", e, creds.getUserName(), false);
             } catch (ApplicationAccessDeniedException e) {
-                log.debug("Crowd application denied: " + creds.getUserName());
+                logCrowd("Application Access Denied", e, creds.getUserName(), true);
             }
         } else {
             Principal p = state.getAuthenticatedPrincipal().orNull();
@@ -244,15 +272,15 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
             }
             try {
                 crowdUser = client.getUser(p.getName());
-            } catch (UserNotFoundException e1) {
-                log.error("User not found from authenticated context", e1);
-            } catch (OperationFailedException e1) {
-                log.error("Unable to connect to Crowd", e1);
+            } catch (UserNotFoundException e) {
+                logCrowd("User Not Found", e, p.getName(), false);
+            } catch (OperationFailedException e) {
+                logCrowd("Operation Failed", e, p.getName(), true);
                 req.setAttribute(LOGIN_ERROR, ERROR_CONNECTION_FAILED);
-            } catch (ApplicationPermissionException e1) {
-                log.debug("Crowd application permission problem", e1);
-            } catch (InvalidAuthenticationException e1) {
-                log.error("Invalid authentication for Crowd token", e1);
+            } catch (ApplicationPermissionException e) {
+                logCrowd("Invalid Application Permission", e, p.getName(), true);
+            } catch (InvalidAuthenticationException e) {
+                logCrowd("Invalid Authentication", e, p.getName(), false);
             }
         }
 
@@ -262,24 +290,30 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
 
         try {
             CrowdUserInfo info = getCrowdUser(crowdUser);
+
             info.setRoles(getGroups(crowdUser));
 
             // Store the user info as a key in the request so apps can use it
             // later in the chain
             req.setAttribute(USERINFO_KEY, info);
-            if (log.isDebugEnabled()) {
-                log.debug("User authenticated from Crowd: " + crowdUser.getName());
-            }
+            logCrowd("User Authenticated", null, crowdUser.getName(), false);
 
             UserMapperService ums = Framework.getService(UserMapperService.class);
             ums.getOrCreateAndUpdateNuxeoPrincipal(mappingName, info);
 
             return info;
-        } catch (Exception e) {
-            log.error("Error while authenticating with Crowd", e);
+
+        } catch (UserNotFoundException e) {
+            logCrowd("User Not Found", e, crowdUser.getName(), false);
+        } catch (InvalidAuthenticationException e) {
+            logCrowd("Invalid Authentication", e, crowdUser.getName(), false);
+        } catch (OperationFailedException e) {
+            logCrowd("Operation Failed", e, crowdUser.getName(), true);
             req.setAttribute(LOGIN_ERROR, ERROR_CONNECTION_FAILED);
-            return null;
+        } catch (ApplicationPermissionException e) {
+            logCrowd("Invalid Application Permission", e, crowdUser.getName(), true);
         }
+        return null;
     }
 
     public UserIdentificationInfo getBasicAuth(HttpServletRequest req, HttpServletResponse resp) {
@@ -358,7 +392,7 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
             try {
                 httpAuthenticator.logout(request, response);
             } catch (Exception e) {
-                log.error("Error sending logout to Crowd", e);
+                logCrowd("Error logging out with Crowd", e, null, false);
             }
         }
         // This function does not perform a redirect, so return false to
