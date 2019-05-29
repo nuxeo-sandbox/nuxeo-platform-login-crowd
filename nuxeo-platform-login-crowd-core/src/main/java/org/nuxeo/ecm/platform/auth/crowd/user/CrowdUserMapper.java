@@ -60,6 +60,7 @@ public class CrowdUserMapper implements UserMapper {
     public NuxeoPrincipal getOrCreateAndUpdateNuxeoPrincipal(Object userObject, boolean createIfNeeded, boolean update,
             Map<String, Serializable> params) {
         return  Framework.doPrivileged(() -> {
+            
             CrowdUserInfo userInfo = (CrowdUserInfo) userObject;
             for (String role : userInfo.getRoles()) {
                 findOrCreateGroup(role, userInfo.getUserName());
@@ -132,7 +133,7 @@ public class CrowdUserMapper implements UserMapper {
         try {
             userDoc = userManager.getBareUserModel();
             userDoc.setPropertyValue(userManager.getUserIdField(), userInfo.getUserName());
-            userDoc.setPropertyValue(userManager.getUserEmailField(), userInfo.getUserName());
+            userDoc.setPropertyValue(userManager.getUserEmailField(), userInfo.getEmail());
             userDoc = userManager.createUser(userDoc);
         } catch (NuxeoException e) {
             String message = "Error while creating user [" + userInfo.getUserName() + "] in UserManager";
@@ -144,7 +145,7 @@ public class CrowdUserMapper implements UserMapper {
 
     private void updateUser(DocumentModel userDoc, CrowdUserInfo userInfo) {
         userDoc.setPropertyValue(userManager.getUserIdField(), userInfo.getUserName());
-        userDoc.setPropertyValue(userManager.getUserEmailField(), userInfo.getUserName());
+        userDoc.setPropertyValue(userManager.getUserEmailField(), userInfo.getEmail());
         userDoc.setProperty(userSchemaName, "firstName", userInfo.getFirstName());
         userDoc.setProperty(userSchemaName, "lastName", userInfo.getLastName());
         userDoc.setProperty(userSchemaName, "password", userInfo.getPassword());

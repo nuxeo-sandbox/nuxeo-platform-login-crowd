@@ -37,6 +37,8 @@ public class CrowdUserInfo extends UserIdentificationInfo {
     protected String lastName;
 
     protected String company;
+    
+    protected String email;
 
     protected Set<String> roles;
 
@@ -44,7 +46,7 @@ public class CrowdUserInfo extends UserIdentificationInfo {
         super(emailAsUserName, password);
     }
 
-    public CrowdUserInfo(String emailAsUserName, String password, String firstName, String lastName, String company) {
+    public CrowdUserInfo(String emailAsUserName, String password, String firstName, String lastName, String email, String company) {
         super(emailAsUserName, password);
 
         if (emailAsUserName == null || StringUtils.isEmpty(emailAsUserName)) {
@@ -54,6 +56,7 @@ public class CrowdUserInfo extends UserIdentificationInfo {
         this.firstName = firstName;
         this.lastName = lastName;
         this.company = company;
+        this.email = email;
     }
 
     public String getFirstName() {
@@ -62,6 +65,10 @@ public class CrowdUserInfo extends UserIdentificationInfo {
 
     public String getLastName() {
         return lastName;
+    }
+    
+    public String getEmail() {
+        return email;
     }
 
     public String getCompany() {
@@ -94,6 +101,8 @@ public class CrowdUserInfo extends UserIdentificationInfo {
         protected String lastName;
 
         protected String firstName;
+        
+        protected String email;
 
         private CrowdUserInfoBuilder() {
         }
@@ -132,9 +141,14 @@ public class CrowdUserInfo extends UserIdentificationInfo {
             this.firstName = firstName;
             return this;
         }
+        
+        public CrowdUserInfoBuilder withEmail(String email) {
+            this.email = email;
+            return this;
+        }
 
         public CrowdUserInfo build() {
-            CrowdUserInfo info = new CrowdUserInfo(userName, password, firstName, lastName, company);
+            CrowdUserInfo info = new CrowdUserInfo(userName, password, firstName, lastName, email, company);
             info.setToken(token);
             info.setAuthPluginName(authPluginName);
             return info;

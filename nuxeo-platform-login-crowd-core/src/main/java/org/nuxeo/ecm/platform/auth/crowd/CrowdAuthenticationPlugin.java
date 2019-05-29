@@ -286,6 +286,8 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
 
         if (crowdUser == null) {
             return null;
+        } else {
+            logCrowd("User Information", null, crowdUser.toString(), false);
         }
 
         try {
@@ -341,14 +343,15 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
             OperationFailedException, ApplicationPermissionException {
         return CrowdUserInfo.builder()
                             // Required
-                            .withUserName(token.getEmailAddress())
+                            .withUserName(token.getName())
                             // Optional
+                            .withEmail(token.getEmailAddress())
                             .withFirstName(token.getFirstName())
                             .withLastName(token.getLastName())
                             .withCompany(token.getDisplayName())
                             .withAuthPluginName(pluginName)
                             // The password is randomly generated as we won't use it
-                            .withPassword(token.getEmailAddress())
+                            .withPassword(token.getExternalId())
                             .build();
     }
 

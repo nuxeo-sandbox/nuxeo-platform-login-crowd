@@ -39,6 +39,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.nuxeo.ecm.platform.api.login.UserIdentificationInfo;
+import org.nuxeo.ecm.platform.auth.crowd.user.CrowdUserInfo;
 import org.nuxeo.ecm.platform.test.PlatformFeature;
 import org.nuxeo.runtime.test.runner.ConditionalIgnoreRule;
 import org.nuxeo.runtime.test.runner.Deploy;
@@ -102,7 +103,8 @@ public class TestCrowdAuthenticationPlugin {
 
         UserIdentificationInfo identity = crowdAuthPlugin.handleRetrieveIdentity(requestFacade, responseMock);
         assertNotNull(identity);
-        assertEquals("auser@nuxeo.com", identity.getUserName());
+        assertEquals("andy", identity.getUserName());
+        assertEquals("auser@nuxeo.com", ((CrowdUserInfo) identity).getEmail());
     }
 
     @Test
@@ -117,7 +119,8 @@ public class TestCrowdAuthenticationPlugin {
         UserIdentificationInfo identity = crowdAuthPlugin.handleRetrieveIdentity(requestFacade, responseFacade);
 
         assertNotNull(identity);
-        assertEquals("auser@nuxeo.com", identity.getUserName());
+        assertEquals("andy", identity.getUserName());
+        assertEquals("auser@nuxeo.com", ((CrowdUserInfo) identity).getEmail());
 
         Mockito.verify(requestMock).getHeader("authorization");
     }
