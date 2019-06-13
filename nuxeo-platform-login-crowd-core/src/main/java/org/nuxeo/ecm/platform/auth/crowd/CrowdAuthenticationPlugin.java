@@ -206,6 +206,7 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
 
     @Override
     public UserIdentificationInfo handleRetrieveIdentity(HttpServletRequest req, HttpServletResponse resp) {
+        boolean createOrUpdate = true;
         User crowdUser = null;
         AuthenticationState state = null;
         try {
@@ -239,11 +240,15 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
                 }
                 creds = new UserIdentificationInfo(userName, password);
             }
+            
+            logCrowd("Authenticating Request", null, creds.getUserName(), false);
 
             try {
                 crowdUser = httpAuthenticator.authenticate(req, resp, creds.getUserName(), creds.getPassword());
                 if (log.isDebugEnabled() && crowdUser == null) {
                     log.debug("No such user in Crowd: " + creds.getUserName());
+                } else {
+                    logCrowd("User Authenticated", null, creds.getUserName(), false);
                 }
             } catch (ExpiredCredentialException e) {
                 logCrowd("Credential Expired", e, creds.getUserName(), false);
@@ -266,11 +271,15 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
                 logCrowd("Application Access Denied", e, creds.getUserName(), true);
             }
         } else {
+            // No need to create or update
+            createOrUpdate = false;
+            // Get current state
             Principal p = state.getAuthenticatedPrincipal().orNull();
             if (p == null) {
                 return null;
             }
             try {
+                logCrowd("Authorizing Request", null, p.getName(), false);
                 crowdUser = client.getUser(p.getName());
             } catch (UserNotFoundException e) {
                 logCrowd("User Not Found", e, p.getName(), false);
@@ -287,9 +296,9 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
         if (crowdUser == null) {
             return null;
         } else {
-            logCrowd("User Information", null, crowdUser.toString(), false);
+            logCrowd("Authorized User", null, crowdUser.toString(), false);
         }
-
+        
         try {
             CrowdUserInfo info = getCrowdUser(crowdUser);
 
@@ -298,10 +307,9 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
             // Store the user info as a key in the request so apps can use it
             // later in the chain
             req.setAttribute(USERINFO_KEY, info);
-            logCrowd("User Authenticated", null, crowdUser.getName(), false);
 
             UserMapperService ums = Framework.getService(UserMapperService.class);
-            ums.getOrCreateAndUpdateNuxeoPrincipal(mappingName, info);
+            ums.getOrCreateAndUpdateNuxeoPrincipal(mappingName, info, createOrUpdate, createOrUpdate, null);
 
             return info;
 

@@ -2,20 +2,22 @@
 <Configuration>
   <Appenders>
     <Console name="CONSOLE" target="SYSTEM_OUT">
-      <ThresholdFilter level="DEBUG" onMatch="ACCEPT" />
-      <PatternLayout pattern="%d{DEFAULT} [%t] %-5p [%C{1}] %m%n" />
+      <ThresholdFilter level="TRACE" onMatch="ACCEPT"/>
+      <PatternLayout pattern="%d{DEFAULT} [%t] %-5p [%C{1}] %m%n"/>
     </Console>
     <File name="FILE" fileName="target/trace.log" append="false">
-      <ThresholdFilter level="DEBUG" onMatch="ACCEPT" />
-      <PatternLayout pattern="%d{DEFAULT} [%t] %-5p [%C{1}] %m%n" />
+      <ThresholdFilter level="TRACE" onMatch="ACCEPT"/>
+      <PatternLayout pattern="%d{DEFAULT} [%t] %-5p [%C{1}] %m%n"/>
     </File>
   </Appenders>
   <Loggers>
-    <Logger name="org.nuxeo" level="warn" />
-    <Logger name="org.nuxeo.ecm.platform.auth.crowd" level="debug" />
+    <Logger name="org.nuxeo" level="warn"/>
+    <Logger name="org.nuxeo.ecm.platform.auth.crowd" level="debug"/>
+    <!-- <Logger name="org.nuxeo.ecm.core.storage.sql.jdbc" level="trace"/> -->
+    <!-- <Logger name="org.nuxeo.ecm.core.query" level="trace"/> -->
     <Root level="warn">
-      <AppenderRef ref="CONSOLE" />
-      <AppenderRef ref="FILE" />
+      <AppenderRef ref="CONSOLE"/>
+      <AppenderRef ref="FILE"/>
     </Root>
   </Loggers>
 </Configuration>

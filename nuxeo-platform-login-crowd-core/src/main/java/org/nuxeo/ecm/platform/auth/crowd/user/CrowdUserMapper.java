@@ -22,8 +22,10 @@ package org.nuxeo.ecm.platform.auth.crowd.user;
 
 import java.io.Serializable;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.nuxeo.ecm.core.api.DocumentModel;
 import org.nuxeo.ecm.core.api.DocumentModelList;
@@ -59,21 +61,62 @@ public class CrowdUserMapper implements UserMapper {
     @Override
     public NuxeoPrincipal getOrCreateAndUpdateNuxeoPrincipal(Object userObject, boolean createIfNeeded, boolean update,
             Map<String, Serializable> params) {
-        return  Framework.doPrivileged(() -> {
-            
+        return Framework.doPrivileged(() -> {
+
             CrowdUserInfo userInfo = (CrowdUserInfo) userObject;
-            for (String role : userInfo.getRoles()) {
-                findOrCreateGroup(role, userInfo.getUserName());
+
+            if (log.isDebugEnabled()) {
+                log.debug("Mapping user info: " + userInfo);
             }
 
-            // Remember that username is email by default
+            // Username is defined by info
             DocumentModel userDoc = findUser(userInfo);
-            if (userDoc == null) {
+            Set<String> existingGroups = new HashSet<>();
+            if (userDoc == null && createIfNeeded) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Creating user: " + userInfo);
+                }
                 userDoc = createUser(userInfo);
+            } else {
+                NuxeoPrincipal np = userManager.getPrincipal(userInfo.getUserName());
+                // Only get direct groups
+                List<String> userGroups = np.getGroups();
+                existingGroups.addAll(userGroups);
             }
 
-            updateUser(userDoc, userInfo);
+            // Only search/populate groups on creation & update
+            if (createIfNeeded || update) {
+                for (String role : userInfo.getRoles()) {
+                    findOrCreateGroup(role, userInfo);
+                    existingGroups.remove(role);
+                }
+                if (!existingGroups.isEmpty()) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Removing Crowd user from groups: " + existingGroups);
+                    }
+                    for (String toRemove : existingGroups) {
+                        removeFromGroup(toRemove, userInfo);
+                    }
+                }
+            }
 
+            // If no user found and none is created, return null
+            if (userDoc == null) {
+                if (log.isDebugEnabled()) {
+                    log.debug("No user found for mapping: " + userInfo);
+                }
+                return null;
+            }
+
+            // Update on demand only
+            if (update) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Updating user: " + userInfo);
+                }
+                updateUser(userDoc, userInfo);
+            }
+
+            // Resolve user via ID
             String userId = (String) userDoc.getPropertyValue(userManager.getUserIdField());
             return userManager.getPrincipal(userId);
         });
@@ -86,20 +129,41 @@ public class CrowdUserMapper implements UserMapper {
         groupSchemaName = userManager.getGroupSchemaName();
     }
 
-    private DocumentModel findOrCreateGroup(String role, String userName) {
+    private DocumentModel findOrCreateGroup(String role, CrowdUserInfo user) {
         DocumentModel groupDoc = findGroup(role);
         if (groupDoc == null) {
             groupDoc = userManager.getBareGroupModel();
             groupDoc.setPropertyValue(userManager.getGroupIdField(), role);
             groupDoc.setProperty(groupSchemaName, "groupname", role);
             groupDoc.setProperty(groupSchemaName, "grouplabel", role + " group");
-            groupDoc.setProperty(groupSchemaName, "description",
-                    "Group automatically created by Crowd based on user role [" + role + "]");
+            groupDoc.setProperty(groupSchemaName, "description", "Crowd/" + user.getAuthPluginName());
             groupDoc = userManager.createGroup(groupDoc);
         }
         List<String> users = userManager.getUsersInGroupAndSubGroups(role);
-        if (!users.contains(userName)) {
-            users.add(userName);
+        if (!users.contains(user.getUserName())) {
+            users.add(user.getUserName());
+            groupDoc.setProperty(groupSchemaName, userManager.getGroupMembersField(), users);
+            userManager.updateGroup(groupDoc);
+        }
+        return groupDoc;
+    }
+
+    private DocumentModel removeFromGroup(String role, CrowdUserInfo user) {
+        DocumentModel groupDoc = findGroup(role);
+        // Only remove users from Crowd assigned groups
+        if (groupDoc == null) {
+            return null;
+        } else {
+            String desc = (String) groupDoc.getProperty(groupSchemaName, "description");
+            if (desc == null || !desc.equals("Crowd/" + user.getAuthPluginName())) {
+                log.debug("Not removing Crowd user from: " + groupDoc.getProperty(groupSchemaName, "groupname")
+                        + ", not directly assigned");
+                return null;
+            }
+        }
+        List<String> users = userManager.getUsersInGroupAndSubGroups(role);
+        if (users.contains(user.getUserName())) {
+            users.remove(user.getUserName());
             groupDoc.setProperty(groupSchemaName, userManager.getGroupMembersField(), users);
             userManager.updateGroup(groupDoc);
         }
@@ -154,7 +218,8 @@ public class CrowdUserMapper implements UserMapper {
     }
 
     @Override
-    public Object wrapNuxeoPrincipal(NuxeoPrincipal principal, Object nativePrincipal, Map<String, Serializable> params) {
+    public Object wrapNuxeoPrincipal(NuxeoPrincipal principal, Object nativePrincipal,
+            Map<String, Serializable> params) {
         throw new UnsupportedOperationException();
     }
 

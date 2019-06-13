@@ -37,7 +37,7 @@ public class CrowdUserInfo extends UserIdentificationInfo {
     protected String lastName;
 
     protected String company;
-    
+
     protected String email;
 
     protected Set<String> roles;
@@ -46,7 +46,8 @@ public class CrowdUserInfo extends UserIdentificationInfo {
         super(emailAsUserName, password);
     }
 
-    public CrowdUserInfo(String emailAsUserName, String password, String firstName, String lastName, String email, String company) {
+    public CrowdUserInfo(String emailAsUserName, String password, String firstName, String lastName, String email,
+            String company) {
         super(emailAsUserName, password);
 
         if (emailAsUserName == null || StringUtils.isEmpty(emailAsUserName)) {
@@ -66,7 +67,7 @@ public class CrowdUserInfo extends UserIdentificationInfo {
     public String getLastName() {
         return lastName;
     }
-    
+
     public String getEmail() {
         return email;
     }
@@ -81,6 +82,23 @@ public class CrowdUserInfo extends UserIdentificationInfo {
 
     public void setRoles(Set<String> roles) {
         this.roles = roles;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder builder = new StringBuilder();
+        builder.append("CrowdUserInfo [email=")
+               .append(email)
+               .append(", firstName=")
+               .append(firstName)
+               .append(", lastName=")
+               .append(lastName)
+               .append(", company=")
+               .append(company)
+               .append(", roles=")
+               .append(roles)
+               .append("]");
+        return builder.toString();
     }
 
     public static CrowdUserInfoBuilder builder() {
@@ -101,7 +119,7 @@ public class CrowdUserInfo extends UserIdentificationInfo {
         protected String lastName;
 
         protected String firstName;
-        
+
         protected String email;
 
         private CrowdUserInfoBuilder() {
@@ -141,7 +159,7 @@ public class CrowdUserInfo extends UserIdentificationInfo {
             this.firstName = firstName;
             return this;
         }
-        
+
         public CrowdUserInfoBuilder withEmail(String email) {
             this.email = email;
             return this;
