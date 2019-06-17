@@ -5,3 +5,6 @@
 nuxeo.template.includes=common
 
 # org.nuxeo.ecm.instance.description=Nuxeo ECM customized with nuxeo-platform-login-crowd
+
+# Add & remove users from all groups (including non-Crowd created groups) [default: true]
+nuxeo.crowd.check_all_groups=true
