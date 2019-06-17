@@ -5,7 +5,12 @@
     <documentation>
       Contribute the default UserMapper for Crowd.
     </documentation>
-    <mapper name="crowd" class="org.nuxeo.ecm.platform.auth.crowd.user.CrowdUserMapper"/>
+    <mapper name="crowd" class="org.nuxeo.ecm.platform.auth.crowd.user.CrowdUserMapper">
+      <parameters>
+        <!-- Add/remove user from all groups, not just Crowd groups -->
+        <param name="checkAllGroups">${nuxeo.crowd.check_all_groups}</param>
+      </parameters>
+    </mapper>
   </extension>
 
 </component>

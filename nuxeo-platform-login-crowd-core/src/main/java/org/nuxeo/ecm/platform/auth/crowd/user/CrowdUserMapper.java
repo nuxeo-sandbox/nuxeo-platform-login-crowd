@@ -47,11 +47,32 @@ public class CrowdUserMapper implements UserMapper {
 
     private static final Logger log = LoggerFactory.getLogger(CrowdUserMapper.class);
 
+    static final String CHECK_ALL_GROUPS_PARAM = "checkAllGroups";
+
     protected static String userSchemaName = "user";
 
     protected static String groupSchemaName = "group";
 
+    protected boolean checkAllGroups = false;
+
     protected UserManager userManager;
+
+    @Override
+    public void init(Map<String, String> params) throws Exception {
+        userManager = Framework.getService(UserManager.class);
+        userSchemaName = userManager.getUserSchemaName();
+        groupSchemaName = userManager.getGroupSchemaName();
+        if (params != null) {
+            checkAllGroups = Boolean.parseBoolean(params.get(CHECK_ALL_GROUPS_PARAM));
+            if (log.isDebugEnabled()) {
+                if (checkAllGroups) {
+                    log.debug("Adding and removing Crowd users from all groups, including system-defined entries");
+                } else {
+                    log.debug("Adding Crowd users to all groups, but only removing from Crowd-created groups");
+                }
+            }
+        }
+    }
 
     @Override
     public NuxeoPrincipal getOrCreateAndUpdateNuxeoPrincipal(Object userObject) {
@@ -122,13 +143,6 @@ public class CrowdUserMapper implements UserMapper {
         });
     }
 
-    @Override
-    public void init(Map<String, String> params) throws Exception {
-        userManager = Framework.getService(UserManager.class);
-        userSchemaName = userManager.getUserSchemaName();
-        groupSchemaName = userManager.getGroupSchemaName();
-    }
-
     private DocumentModel findOrCreateGroup(String role, CrowdUserInfo user) {
         DocumentModel groupDoc = findGroup(role);
         if (groupDoc == null) {
@@ -153,7 +167,7 @@ public class CrowdUserMapper implements UserMapper {
         // Only remove users from Crowd assigned groups
         if (groupDoc == null) {
             return null;
-        } else {
+        } else if (checkAllGroups == false) {
             String desc = (String) groupDoc.getProperty(groupSchemaName, "description");
             if (desc == null || !desc.equals("Crowd/" + user.getAuthPluginName())) {
                 log.debug("Not removing Crowd user from: " + groupDoc.getProperty(groupSchemaName, "groupname")
