@@ -82,6 +82,11 @@ public class CrowdUserMapper implements UserMapper {
     @Override
     public NuxeoPrincipal getOrCreateAndUpdateNuxeoPrincipal(Object userObject, boolean createIfNeeded, boolean update,
             Map<String, Serializable> params) {
+        if (userObject == null) {
+            log.debug("No user object found to map");
+            return null;
+        }
+
         return Framework.doPrivileged(() -> {
 
             CrowdUserInfo userInfo = (CrowdUserInfo) userObject;
