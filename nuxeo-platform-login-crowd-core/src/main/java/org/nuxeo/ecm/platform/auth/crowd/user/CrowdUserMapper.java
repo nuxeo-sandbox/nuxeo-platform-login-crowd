@@ -105,9 +105,13 @@ public class CrowdUserMapper implements UserMapper {
                 userDoc = createUser(userInfo);
             } else {
                 NuxeoPrincipal np = userManager.getPrincipal(userInfo.getUserName());
-                // Only get direct groups
-                List<String> userGroups = np.getGroups();
-                existingGroups.addAll(userGroups);
+                if (np != null) {
+                    // Only get direct groups
+                    List<String> userGroups = np.getGroups();
+                    if (userGroups != null && !userGroups.isEmpty()) {
+                        existingGroups.addAll(userGroups);
+                    }
+                }
             }
 
             // Only search/populate groups on creation & update
