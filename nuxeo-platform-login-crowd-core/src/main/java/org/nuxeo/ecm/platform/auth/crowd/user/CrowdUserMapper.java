@@ -104,12 +104,15 @@ public class CrowdUserMapper implements UserMapper {
                 }
                 userDoc = createUser(userInfo);
             } else {
-                NuxeoPrincipal np = userManager.getPrincipal(userInfo.getUserName());
-                if (np != null) {
-                    // Only get direct groups
-                    List<String> userGroups = np.getGroups();
-                    if (userGroups != null && !userGroups.isEmpty()) {
-                        existingGroups.addAll(userGroups);
+                String userId = (String) userDoc.getPropertyValue(userManager.getUserIdField());
+                if (userId != null) {
+                    NuxeoPrincipal np = userManager.getPrincipal(userId);
+                    if (np != null) {
+                        // Only get direct groups
+                        List<String> userGroups = np.getGroups();
+                        if (userGroups != null && !userGroups.isEmpty()) {
+                            existingGroups.addAll(userGroups);
+                        }
                     }
                 }
             }
