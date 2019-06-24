@@ -92,6 +92,8 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
     public static final String CROWD_AUTH_PLUGIN_KEY = "pluginName";
 
     public static final String CROWD_AUTH_LOGGING_KEY = "logging";
+    
+    public static final String CROWD_AUTH_ALL_GROUPS = "checkAllGroups";
 
     public static final String USERINFO_KEY = "CROWD_USERINFO";
 
@@ -190,6 +192,9 @@ public class CrowdAuthenticationPlugin extends FormAuthenticator
      * Log Crowd communication exceptions
      */
     private void logCrowd(String reason, Exception e, String user, boolean warn) {
+        if (!(warn || logging || log.isDebugEnabled())) {
+            return;
+        }
         StringBuilder buf = new StringBuilder(reason);
         if (e != null) {
             buf.append(" [").append(e.getMessage()).append("]");

@@ -32,6 +32,7 @@ import org.nuxeo.ecm.core.api.DocumentModelList;
 import org.nuxeo.ecm.core.api.NuxeoException;
 import org.nuxeo.ecm.core.api.NuxeoPrincipal;
 import org.nuxeo.ecm.platform.api.login.UserIdentificationInfo;
+import org.nuxeo.ecm.platform.auth.crowd.CrowdAuthenticationPlugin;
 import org.nuxeo.ecm.platform.usermanager.UserManager;
 import org.nuxeo.runtime.api.Framework;
 import org.nuxeo.usermapper.extension.UserMapper;
@@ -47,13 +48,15 @@ public class CrowdUserMapper implements UserMapper {
 
     private static final Logger log = LoggerFactory.getLogger(CrowdUserMapper.class);
 
-    static final String CHECK_ALL_GROUPS_PARAM = "checkAllGroups";
-
     protected static String userSchemaName = "user";
+    
+    protected static String userIdField = "userId";
 
     protected static String groupSchemaName = "group";
 
     protected boolean checkAllGroups = false;
+
+    protected boolean logging = false;
 
     protected UserManager userManager;
 
@@ -61,16 +64,40 @@ public class CrowdUserMapper implements UserMapper {
     public void init(Map<String, String> params) throws Exception {
         userManager = Framework.getService(UserManager.class);
         userSchemaName = userManager.getUserSchemaName();
+        userIdField = userManager.getUserIdField();
         groupSchemaName = userManager.getGroupSchemaName();
+        log.warn("User mapper activated: " + params);
         if (params != null) {
-            checkAllGroups = Boolean.parseBoolean(params.get(CHECK_ALL_GROUPS_PARAM));
-            if (log.isDebugEnabled()) {
-                if (checkAllGroups) {
-                    log.debug("Adding and removing Crowd users from all groups, including system-defined entries");
-                } else {
-                    log.debug("Adding Crowd users to all groups, but only removing from Crowd-created groups");
-                }
+            logging = Boolean.parseBoolean(params.get(CrowdAuthenticationPlugin.CROWD_AUTH_LOGGING_KEY));
+            checkAllGroups = Boolean.parseBoolean(params.get(CrowdAuthenticationPlugin.CROWD_AUTH_ALL_GROUPS));
+            if (checkAllGroups) {
+                logCrowd("Adding and removing Crowd users from all groups, including system-defined entries", null,
+                        null, false);
+            } else {
+                logCrowd("Adding Crowd users to all groups, but only removing from Crowd-created groups", null, null,
+                        false);
             }
+        }
+    }
+
+    /**
+     * Log Crowd communication exceptions
+     */
+    private void logCrowd(String reason, Exception e, Object user, boolean warn) {
+        if (!(warn || logging || log.isDebugEnabled())) {
+            return;
+        }
+        StringBuilder buf = new StringBuilder(reason);
+        if (e != null) {
+            buf.append(" [").append(e.getMessage()).append("]");
+        }
+        if (user != null) {
+            buf.append(": ").append(user.toString());
+        }
+        if (warn || logging) {
+            log.warn(buf.toString(), e);
+        } else if (log.isDebugEnabled()) {
+            log.debug(buf.toString(), e);
         }
     }
 
@@ -83,7 +110,7 @@ public class CrowdUserMapper implements UserMapper {
     public NuxeoPrincipal getOrCreateAndUpdateNuxeoPrincipal(Object userObject, boolean createIfNeeded, boolean update,
             Map<String, Serializable> params) {
         if (userObject == null) {
-            log.debug("No user object found to map");
+            logCrowd("No user object found to map", null, null, true);
             return null;
         }
 
@@ -92,19 +119,17 @@ public class CrowdUserMapper implements UserMapper {
             CrowdUserInfo userInfo = (CrowdUserInfo) userObject;
 
             if (log.isDebugEnabled()) {
-                log.debug("Mapping user info: " + userInfo);
+                logCrowd("Mapping user info", null, userInfo, false);
             }
 
             // Username is defined by info
             DocumentModel userDoc = findUser(userInfo);
             Set<String> existingGroups = new HashSet<>();
             if (userDoc == null && createIfNeeded) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Creating user: " + userInfo);
-                }
+                logCrowd("Creating user", null, userInfo, false);
                 userDoc = createUser(userInfo);
-            } else {
-                String userId = (String) userDoc.getPropertyValue(userManager.getUserIdField());
+            } else if (userDoc != null) {
+                String userId = (String) userDoc.getPropertyValue(userIdField);
                 if (userId != null) {
                     NuxeoPrincipal np = userManager.getPrincipal(userId);
                     if (np != null) {
@@ -115,6 +140,9 @@ public class CrowdUserMapper implements UserMapper {
                         }
                     }
                 }
+            } else {
+                logCrowd("No user mapping found", null, userInfo, true);
+                return null;
             }
 
             // Only search/populate groups on creation & update
@@ -124,33 +152,21 @@ public class CrowdUserMapper implements UserMapper {
                     existingGroups.remove(role);
                 }
                 if (!existingGroups.isEmpty()) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Removing Crowd user from groups: " + existingGroups);
-                    }
+                    logCrowd("Removing from groups: " + existingGroups, null, userInfo, false);
                     for (String toRemove : existingGroups) {
                         removeFromGroup(toRemove, userInfo);
                     }
                 }
             }
 
-            // If no user found and none is created, return null
-            if (userDoc == null) {
-                if (log.isDebugEnabled()) {
-                    log.debug("No user found for mapping: " + userInfo);
-                }
-                return null;
-            }
-
             // Update on demand only
             if (update) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Updating user: " + userInfo);
-                }
+                logCrowd("Updating user", null, userInfo, false);
                 updateUser(userDoc, userInfo);
             }
 
             // Resolve user via ID
-            String userId = (String) userDoc.getPropertyValue(userManager.getUserIdField());
+            String userId = (String) userDoc.getPropertyValue(userIdField);
             return userManager.getPrincipal(userId);
         });
     }
@@ -182,8 +198,8 @@ public class CrowdUserMapper implements UserMapper {
         } else if (checkAllGroups == false) {
             String desc = (String) groupDoc.getProperty(groupSchemaName, "description");
             if (desc == null || !desc.equals("Crowd/" + user.getAuthPluginName())) {
-                log.debug("Not removing Crowd user from: " + groupDoc.getProperty(groupSchemaName, "groupname")
-                        + ", not directly assigned");
+                logCrowd("Not removing Crowd user from: " + groupDoc.getProperty(groupSchemaName, "groupname")
+                        + ", not directly assigned", null, user, false);
                 return null;
             }
         }
@@ -209,7 +225,7 @@ public class CrowdUserMapper implements UserMapper {
 
     private DocumentModel findUser(UserIdentificationInfo userInfo) {
         Map<String, Serializable> query = new HashMap<>();
-        query.put(userManager.getUserIdField(), userInfo.getUserName());
+        query.put(userIdField, userInfo.getUserName());
         DocumentModelList users = userManager.searchUsers(query, null);
 
         if (users.isEmpty()) {
@@ -222,19 +238,19 @@ public class CrowdUserMapper implements UserMapper {
         DocumentModel userDoc;
         try {
             userDoc = userManager.getBareUserModel();
-            userDoc.setPropertyValue(userManager.getUserIdField(), userInfo.getUserName());
+            userDoc.setPropertyValue(userIdField, userInfo.getUserName());
             userDoc.setPropertyValue(userManager.getUserEmailField(), userInfo.getEmail());
             userDoc = userManager.createUser(userDoc);
         } catch (NuxeoException e) {
             String message = "Error while creating user [" + userInfo.getUserName() + "] in UserManager";
-            log.error(message, e);
+            logCrowd("Error creating user", e, userInfo, true);
             throw new RuntimeException(message);
         }
         return userDoc;
     }
 
     private void updateUser(DocumentModel userDoc, CrowdUserInfo userInfo) {
-        userDoc.setPropertyValue(userManager.getUserIdField(), userInfo.getUserName());
+        userDoc.setPropertyValue(userIdField, userInfo.getUserName());
         userDoc.setPropertyValue(userManager.getUserEmailField(), userInfo.getEmail());
         userDoc.setProperty(userSchemaName, "firstName", userInfo.getFirstName());
         userDoc.setProperty(userSchemaName, "lastName", userInfo.getLastName());

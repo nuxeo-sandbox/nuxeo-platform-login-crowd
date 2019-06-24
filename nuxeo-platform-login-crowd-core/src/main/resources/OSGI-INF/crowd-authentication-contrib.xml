@@ -8,7 +8,8 @@
     <mapper name="crowd" class="org.nuxeo.ecm.platform.auth.crowd.user.CrowdUserMapper">
       <parameters>
         <!-- Add/remove user from all groups, not just Crowd groups -->
-        <param name="checkAllGroups">${nuxeo.crowd.check_all_groups}</param>
+        <parameter name="checkAllGroups">${nuxeo.crowd.check_all_groups}</parameter>
+        <parameter name="logging">${nuxeo.crowd.logging}</parameter>
       </parameters>
     </mapper>
   </extension>

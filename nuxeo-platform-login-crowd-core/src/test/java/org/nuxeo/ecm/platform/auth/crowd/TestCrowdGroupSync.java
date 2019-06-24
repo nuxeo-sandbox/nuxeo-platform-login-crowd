@@ -21,6 +21,7 @@ package org.nuxeo.ecm.platform.auth.crowd;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -99,7 +100,7 @@ public class TestCrowdGroupSync {
 
         // First pass
         CrowdUserMapper userMapper = new CrowdUserMapper();
-        userMapper.init(null);
+        userMapper.init(Collections.singletonMap(CrowdAuthenticationPlugin.CROWD_AUTH_ALL_GROUPS, "true"));
         // Run twice to test group scan
         for (int i = 0; i < 2; i++) {
             NuxeoPrincipal principal = userMapper.getOrCreateAndUpdateNuxeoPrincipal(identity);
