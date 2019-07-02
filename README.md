@@ -84,6 +84,7 @@ cookie.tokenkey                         crowd.token_key
         <plugin>CROWD_AUTH</plugin>
         <plugin>BASIC_AUTH</plugin>
         <plugin>FORM_AUTH</plugin>
+        <plugin>TOKEN_AUTH</plugin>
       </plugins>
     </authenticationChain>
   </extension>
@@ -98,6 +99,7 @@ cookie.tokenkey                         crowd.token_key
       </urlPatterns>
       <replacementChain>
         <plugin>CROWD_AUTH</plugin>
+        <plugin>TOKEN_AUTH</plugin>
         <plugin>AUTOMATION_BASIC_AUTH</plugin>
       </replacementChain>
     </specificAuthenticationChain>
@@ -113,6 +115,7 @@ cookie.tokenkey                         crowd.token_key
       </urlPatterns>
       <replacementChain>
         <plugin>CROWD_AUTH</plugin>
+        <plugin>TOKEN_AUTH</plugin>
         <plugin>AUTOMATION_BASIC_AUTH</plugin>
       </replacementChain>
     </specificAuthenticationChain>
